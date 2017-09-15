@@ -298,38 +298,6 @@ static mrb_value mrb_signal_thread_wait(mrb_state *mrb, mrb_value self)
   }
 }
 
-/* SigInfo functions */
-
-#define MRB_DEFINE_SIGINFO_MEMBER(name, mrb_convert_fun, member)                                                       \
-  static mrb_value mrb_siginfo_get_##name(mrb_state *mrb, mrb_value self)                                              \
-  {                                                                                                                    \
-    siginfo_t *si = DATA_PTR(self);                                                                                    \
-    if (!si) {                                                                                                         \
-      mrb_raise(mrb, E_RUNTIME_ERROR, "[BUG]");                                                                        \
-    }                                                                                                                  \
-    return mrb_convert_fun(si->member);                                                                                \
-  }
-
-MRB_DEFINE_SIGINFO_MEMBER(pid, mrb_fixnum_value, si_pid);
-MRB_DEFINE_SIGINFO_MEMBER(uid, mrb_fixnum_value, si_uid);
-#ifdef si_syscall
-MRB_DEFINE_SIGINFO_MEMBER(syscall, mrb_fixnum_value, si_syscall);
-#endif
-
-static void mrb_siginfo_register_data(mrb_state *mrb, mrb_value obj, siginfo_t *si)
-{
-  void *data = DATA_PTR(obj);
-  siginfo_t *si2 = mrb_malloc(mrb, sizeof(siginfo_t));
-  if (data || !si2) {
-    mrb_raise(mrb, E_RUNTIME_ERROR, "Register data failed");
-  }
-
-  memcpy(si2, si, sizeof(siginfo_t));
-  DATA_PTR(obj) = si2;
-}
-
-/* Return to SignalThread functions */
-
 static mrb_value mrb_signal_thread_waitinfo(mrb_state *mrb, mrb_value self)
 {
   int sig, argc;
@@ -550,13 +518,6 @@ void mrb_mruby_signal_thread_gem_init(mrb_state *mrb)
   mrb_define_method(mrb, signalthread, "cancel", mrb_signal_thread_cancel, MRB_ARGS_NONE());
 
   mrb_define_class_method(mrb, signalthread, "queue", mrb_signal_thread_queue, MRB_ARGS_REQ(2));
-
-  siginfo = mrb_define_class(mrb, "SigInfo", mrb->object_class);
-  mrb_define_method(mrb, siginfo, "uid", mrb_siginfo_get_uid, MRB_ARGS_NONE());
-  mrb_define_method(mrb, siginfo, "pid", mrb_siginfo_get_pid, MRB_ARGS_NONE());
-#ifdef si_syscall
-  mrb_define_method(mrb, siginfo, "syscall", mrb_siginfo_get_syscall, MRB_ARGS_NONE());
-#endif
 
   DONE;
 }
