@@ -313,7 +313,7 @@ static mrb_value mrb_signal_thread_wait(mrb_state *mrb, mrb_value self)
 MRB_DEFINE_SIGINFO_MEMBER(pid, mrb_fixnum_value, si_pid);
 MRB_DEFINE_SIGINFO_MEMBER(uid, mrb_fixnum_value, si_uid);
 #ifdef si_syscall
-  MRB_DEFINE_SIGINFO_MEMBER(syscall, mrb_fixnum_value, si_syscall);
+MRB_DEFINE_SIGINFO_MEMBER(syscall, mrb_fixnum_value, si_syscall);
 #endif
 
 static void mrb_siginfo_register_data(mrb_state *mrb, mrb_value obj, siginfo_t *si)
@@ -357,19 +357,31 @@ static mrb_value mrb_signal_thread_waitinfo(mrb_state *mrb, mrb_value self)
 
   if (mrb_nil_p(block)) {
     /* just wait if no block given */
+    int ai = mrb_gc_arena_save(mrb);
     sigwaitinfo(&set, &siginfo);
 
-    mrb_si = mrb_obj_new(mrb, mrb_class_get(mrb, "SigInfo"), 0, NULL);
-    mrb_siginfo_register_data(mrb, mrb_si, &siginfo);
+    mrb_si = mrb_hash_new_capa(mrb, 3);
+    mrb_hash_set(mrb, mrb_si, mrb_str_new_lit(mrb, "pid"), mrb_fixnum_value(siginfo.si_pid));
+    mrb_hash_set(mrb, mrb_si, mrb_str_new_lit(mrb, "uid"), mrb_fixnum_value(siginfo.si_uid));
+#ifdef si_syscall
+    mrb_hash_set(mrb, mrb_si, mrb_str_new_lit(mrb, "syscall"), mrb_fixnum_value(siginfo.si_syscall));
+#endif
+    mrb_gc_arena_restore(mrb, ai);
     return mrb_si;
   } else {
     for (;;) {
+      int ai = mrb_gc_arena_save(mrb);
       sigwaitinfo(&set, &siginfo);
 
-      mrb_si = mrb_obj_new(mrb, mrb_class_get(mrb, "SigInfo"), 0, NULL);
-      mrb_siginfo_register_data(mrb, mrb_si, &siginfo);
+      mrb_si = mrb_hash_new_capa(mrb, 3);
+      mrb_hash_set(mrb, mrb_si, mrb_str_new_lit(mrb, "pid"), mrb_fixnum_value(siginfo.si_pid));
+      mrb_hash_set(mrb, mrb_si, mrb_str_new_lit(mrb, "uid"), mrb_fixnum_value(siginfo.si_uid));
+#ifdef si_syscall
+      mrb_hash_set(mrb, mrb_si, mrb_str_new_lit(mrb, "syscall"), mrb_fixnum_value(siginfo.si_syscall));
+#endif
       argv[0] = mrb_si;
       mrb_yield_argv(mrb, block, 1, argv);
+      mrb_gc_arena_restore(mrb, ai);
     }
     /* never return */
     mrb_raise(mrb, E_RUNTIME_ERROR, "[BUG] Wait loop seems broken");

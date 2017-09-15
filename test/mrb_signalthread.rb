@@ -51,7 +51,7 @@ assert('SignalThread#trap, detailed: true') do
 
   t.kill :USR2
   usleep 1000
-  assert_equal "SigInfo", name
+  assert_equal "Hash", name
 end
 
 assert('SignalThread#thread_id') do
